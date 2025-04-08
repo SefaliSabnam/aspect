@@ -2,49 +2,54 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_CRED = credentials('DOCKER_HUB_TOKEN') // DockerHub: Username + Password
-        GITHUB_TOKEN = credentials('github-token')    // GitHub token (if needed)
+        DOCKER_HUB_CREDENTIALS = credentials('DOCKER_HUB_TOKEN')  // your ID with DockerHub username/password or PAT
+        DOCKER_HUB_REPO_BACKEND = 'sefali26/flask-prometheus-app'
+        DOCKER_HUB_REPO_FRONTEND = 'sefali26/frontend-nginx'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                checkout scm // Checkout whatever branch triggered the pipeline
+                git branch: 'CD-678', url: 'https://github.com/SefaliSabnam/aspect.git'
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Backend Docker Image') {
             steps {
                 bat '''
-                echo Building Docker image...
-                docker build -t sefali26/flask-prometheus-app:latest -f Dockerfile .
+                    echo Building Backend Docker Image...
+                    docker build -t %DOCKER_HUB_REPO_BACKEND%:latest -f backend/Dockerfile backend
+                '''
+            }
+        }
+
+        stage('Build Frontend Docker Image') {
+            steps {
+                bat '''
+                    echo Building Frontend Docker Image...
+                    docker build -t %DOCKER_HUB_REPO_FRONTEND%:latest -f frontend/Dockerfile frontend
                 '''
             }
         }
 
         stage('Push to DockerHub') {
             steps {
-                bat """
-                echo Logging in to DockerHub...
-                docker login -u ${DOCKER_CRED_USR} -p ${DOCKER_CRED_PSW}
-
-                echo Pushing Docker image...
-                docker push sefali26/flask-prometheus-app:latest
-                """
+                bat '''
+                    echo Logging in to DockerHub...
+                    echo %DOCKER_HUB_CREDENTIALS_PSW% | docker login -u %DOCKER_HUB_CREDENTIALS_USR% --password-stdin
+                    echo Pushing Backend Image...
+                    docker push %DOCKER_HUB_REPO_BACKEND%:latest
+                    echo Pushing Frontend Image...
+                    docker push %DOCKER_HUB_REPO_FRONTEND%:latest
+                '''
             }
         }
 
         stage('Deploy to Minikube') {
-            when {
-                branch 'main' // Only deploy when on main branch
-            }
             steps {
                 bat '''
-                echo Setting KUBECONFIG...
-                SET KUBECONFIG=%USERPROFILE%\\.kube\\config
-
-                echo Deploying to Minikube...
-                kubectl apply -f k8s/
+                    echo Deploying to Minikube...
+                    kubectl apply -f k8s/
                 '''
             }
         }
@@ -52,16 +57,11 @@ pipeline {
 
     post {
         always {
-            script {
-                echo 'Cleaning up workspace...'
-                deleteDir()
-            }
-        }
-        success {
-            echo ' Pipeline finished successfully!'
+            echo 'Cleaning up workspace...'
+            deleteDir()
         }
         failure {
-            echo ' Pipeline failed. Please check logs.'
+            echo 'Pipeline failed. Please check logs.'
         }
     }
 }
