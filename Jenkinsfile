@@ -2,14 +2,14 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials') // DockerHub creds
-        GITHUB_TOKEN = credentials('github-token') // GitHub token
+        DOCKER_CRED = credentials('DOCKER_HUB_TOKEN') // DockerHub: Username + Password
+        GITHUB_TOKEN = credentials('github-token')    // GitHub token (if needed)
     }
 
     stages {
         stage('Checkout') {
             steps {
-                checkout scm // checkout current branch being built
+                checkout scm // Checkout whatever branch triggered the pipeline
             }
         }
 
@@ -24,19 +24,19 @@ pipeline {
 
         stage('Push to DockerHub') {
             steps {
-                bat '''
+                bat """
                 echo Logging in to DockerHub...
-                docker login -u %DOCKERHUB_CREDENTIALS_USR% -p %DOCKERHUB_CREDENTIALS_PSW%
+                docker login -u ${DOCKER_CRED_USR} -p ${DOCKER_CRED_PSW}
 
-                echo Pushing image...
+                echo Pushing Docker image...
                 docker push sefali26/flask-prometheus-app:latest
-                '''
+                """
             }
         }
 
         stage('Deploy to Minikube') {
             when {
-                branch 'main' // Only deploy if branch is main (i.e., merged)
+                branch 'main' // Only deploy when on main branch
             }
             steps {
                 bat '''
@@ -52,14 +52,16 @@ pipeline {
 
     post {
         always {
-            echo 'Cleaning up...'
-            deleteDir()
+            node {
+                echo 'Cleaning up workspace...'
+                deleteDir()
+            }
         }
         success {
-            echo 'Pipeline completed successfully.'
+            echo 'Pipeline finished successfully!'
         }
         failure {
-            echo ' Pipeline failed.'
+            echo 'Pipeline failed. Please check logs.'
         }
     }
 }
