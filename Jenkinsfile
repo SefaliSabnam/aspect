@@ -1,8 +1,10 @@
 pipeline {
     agent any
+
     environment {
         DOCKER_HUB_REPO = 'sefali26/flask-prometheus-app'
     }
+
     stages {
         stage('Checkout') {
             when {
@@ -12,6 +14,7 @@ pipeline {
                 checkout scm
             }
         }
+
         stage('Build Docker Images') {
             when {
                 branch 'main'
@@ -21,6 +24,7 @@ pipeline {
                 sh 'docker build -t sefali26/frontend-nginx ./frontend'
             }
         }
+
         stage('Push to DockerHub') {
             when {
                 branch 'main'
@@ -33,9 +37,13 @@ pipeline {
                 }
             }
         }
+
         stage('Deploy to Minikube') {
             when {
-                branch 'main'
+                allOf {
+                    branch 'main'
+                    expression { return env.CHANGE_ID == null }
+                }
             }
             steps {
                 sh 'kubectl apply -f k8s/'
