@@ -52,16 +52,16 @@ pipeline {
 
     post {
         always {
-            node {
+            script {
                 echo 'Cleaning up workspace...'
                 deleteDir()
             }
         }
         success {
-            echo 'Pipeline finished successfully!'
+            echo ' Pipeline finished successfully!'
         }
         failure {
-            echo 'Pipeline failed. Please check logs.'
+            echo ' Pipeline failed. Please check logs.'
         }
     }
 }
