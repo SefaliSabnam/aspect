@@ -2,52 +2,64 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_REPO = 'sefali26/flask-prometheus-app'
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials') // DockerHub creds
+        GITHUB_TOKEN = credentials('github-token') // GitHub token
     }
 
     stages {
         stage('Checkout') {
-            when {
-                branch 'main'
-            }
             steps {
-                checkout scm
+                checkout scm // checkout current branch being built
             }
         }
 
-        stage('Build Docker Images') {
-            when {
-                branch 'main'
-            }
+        stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $DOCKER_HUB_REPO ./backend'
-                sh 'docker build -t sefali26/frontend-nginx ./frontend'
+                bat '''
+                echo Building Docker image...
+                docker build -t sefali26/flask-prometheus-app:latest -f Dockerfile .
+                '''
             }
         }
 
         stage('Push to DockerHub') {
-            when {
-                branch 'main'
-            }
             steps {
-                withCredentials([string(credentialsId: 'docker-hub-token', variable: 'DOCKER_TOKEN')]) {
-                    sh 'echo $DOCKER_TOKEN | docker login -u sefali26 --password-stdin'
-                    sh 'docker push $DOCKER_HUB_REPO'
-                    sh 'docker push sefali26/frontend-nginx'
-                }
+                bat '''
+                echo Logging in to DockerHub...
+                docker login -u %DOCKERHUB_CREDENTIALS_USR% -p %DOCKERHUB_CREDENTIALS_PSW%
+
+                echo Pushing image...
+                docker push sefali26/flask-prometheus-app:latest
+                '''
             }
         }
 
         stage('Deploy to Minikube') {
             when {
-                allOf {
-                    branch 'main'
-                    expression { return env.CHANGE_ID == null }
-                }
+                branch 'main' // Only deploy if branch is main (i.e., merged)
             }
             steps {
-                sh 'kubectl apply -f k8s/'
+                bat '''
+                echo Setting KUBECONFIG...
+                SET KUBECONFIG=%USERPROFILE%\\.kube\\config
+
+                echo Deploying to Minikube...
+                kubectl apply -f k8s/
+                '''
             }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up...'
+            deleteDir()
+        }
+        success {
+            echo 'Pipeline completed successfully.'
+        }
+        failure {
+            echo ' Pipeline failed.'
         }
     }
 }
