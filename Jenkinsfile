@@ -18,7 +18,7 @@ pipeline {
             steps {
                 bat '''
                     echo Building Backend Docker Image...
-                    docker build -t %DOCKER_HUB_REPO_BACKEND%:latest -f backend/Dockerfile backend
+                    docker build -t %DOCKER_HUB_REPO_BACKEND%:latest -f Dockerfile .
                 '''
             }
         }
