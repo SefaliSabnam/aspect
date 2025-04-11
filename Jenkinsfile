@@ -17,8 +17,10 @@ pipeline {
         stage('Build Backend Docker Image') {
             steps {
                 bat '''
+                    echo =========================
                     echo Building Backend Docker Image...
                     docker build -t %DOCKER_HUB_REPO_BACKEND%:latest -f Dockerfile .
+                    echo =========================
                 '''
             }
         }
@@ -26,8 +28,10 @@ pipeline {
         stage('Build Frontend Docker Image') {
             steps {
                 bat '''
+                    echo =========================
                     echo Building Frontend Docker Image...
                     docker build -t %DOCKER_HUB_REPO_FRONTEND%:latest -f frontend/Dockerfile frontend
+                    echo =========================
                 '''
             }
         }
@@ -35,12 +39,16 @@ pipeline {
         stage('Push to DockerHub') {
             steps {
                 bat '''
+                    echo =========================
                     echo Logging in to DockerHub...
-                    echo %DOCKER_HUB_CREDENTIALS_PSW% | docker login -u %DOCKER_HUB_CREDENTIALS_USR% --password-stdin
+                    docker login -u %DOCKER_HUB_CREDENTIALS_USR% -p %DOCKER_HUB_CREDENTIALS_PSW%
+
                     echo Pushing Backend Image...
                     docker push %DOCKER_HUB_REPO_BACKEND%:latest
+
                     echo Pushing Frontend Image...
                     docker push %DOCKER_HUB_REPO_FRONTEND%:latest
+                    echo =========================
                 '''
             }
         }
@@ -51,8 +59,13 @@ pipeline {
             }
             steps {
                 bat '''
+                    echo =========================
+                    echo Checking Kubernetes context...
+                    kubectl config current-context
+
                     echo Deploying to Minikube...
                     kubectl apply -f k8s/
+                    echo =========================
                 '''
             }
         }
