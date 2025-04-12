@@ -48,22 +48,36 @@ pipeline {
             steps {
                 script {
                     echo "========================="
-                    echo "Ensuring Minikube is running using Docker driver..."
+                    echo "===== STARTING: Minikube Cluster & Deployment ====="
+
                     bat '''
+                        echo Cleaning up unused Docker containers/images...
+                        docker container prune -f
+                        docker image prune -af
+
+                        echo Checking Minikube status...
                         minikube status | findstr "host: Running" >nul 2>&1
                         if errorlevel 1 (
-                            echo "Minikube not running. Starting Minikube with docker driver..."
-                            minikube start --driver=docker
+                            echo "Minikube not running. Starting Minikube with Docker driver..."
+                            minikube start --driver=docker --memory=4096 --cpus=2
                         ) else (
                             echo "Minikube is already running."
                         )
                     '''
 
-                    echo "Setting kubectl context to minikube..."
-                    bat 'kubectl config use-context minikube'
-
-                    echo "Checking if Kubernetes API server is reachable..."
+                    echo "Setting kubectl context to Minikube..."
                     bat '''
+                        kubectl config use-context minikube
+                        if errorlevel 1 (
+                            echo Failed to switch kubectl context. Exiting...
+                            exit 1
+                        )
+                    '''
+
+                    echo "Waiting for Kubernetes API to be ready..."
+                    bat '''
+                        timeout /t 10
+                        echo Checking node readiness...
                         for /f "tokens=* usebackq" %%i in (`kubectl get nodes ^| findstr "Ready"`) do (
                             echo "Cluster is Ready: %%i"
                         )
@@ -73,6 +87,8 @@ pipeline {
                     bat '''
                         kubectl apply --validate=false -f k8s/
                     '''
+
+                    echo "===== DEPLOYMENT COMPLETE ====="
                     echo "========================="
                 }
             }
