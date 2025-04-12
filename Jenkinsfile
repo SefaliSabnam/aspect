@@ -97,6 +97,41 @@ pipeline {
                 }
             }
         }
+
+        stage('Verify Application and Grafana Metrics') {
+            steps {
+                script {
+                    echo "========================="
+                    echo "Verifying application and Grafana metrics..."
+
+                    // Check if the frontend is accessible
+                    echo "Checking if frontend is up..."
+                    bat '''
+                        curl -s http://$(minikube ip):<frontend-node-port>/ | findstr "Frontend Running"
+                    '''
+                    
+                    // Check if the backend is up
+                    echo "Checking if backend is up..."
+                    bat '''
+                        curl -s http://$(minikube ip):<backend-node-port>/api/health | findstr "OK"
+                    '''
+                    
+                    // Perform a sample CRUD operation: POST request to the backend API
+                    echo "Performing sample POST request to backend API..."
+                    bat '''
+                        curl -X POST -H "Content-Type: application/json" -d "{\"name\": \"Item1\", \"description\": \"Description of item1\"}" http://$(minikube ip):<backend-node-port>/api/items
+                    '''
+                    
+                    // Query Grafana for metrics (ensure the correct Grafana API token is set)
+                    echo "Querying Grafana for metrics..."
+                    bat '''
+                        curl -G -s -H "Authorization: Bearer <grafana-api-token>" "http://$(minikube ip):<grafana-node-port>/api/datasources/proxy/1/api/v1/query" --data-urlencode "query=flask_app_database_query_count_total"
+                    '''
+                    
+                    echo "========================="
+                }
+            }
+        }
     }
 
     post {
