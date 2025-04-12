@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_HUB_CREDENTIALS = credentials('DOCKER_HUB_TOKEN')
-        DOCKER_HUB_REPO_BACKEND = 'sefali26/flask-prometheus-app'
+        DOCKER_HUB_REPO = 'sefali26/flask-prometheus-app'
     }
 
     stages {
@@ -15,43 +15,51 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                bat '''
-                    echo =========================
-                    echo Building Docker Image...
-                    docker build -t %DOCKER_HUB_REPO_BACKEND%:latest -f Dockerfile .
-                    echo =========================
-                '''
+                script {
+                    echo "========================="
+                    echo "Building Combined Flask App Docker Image..."
+                    bat '''
+                        docker build -t %DOCKER_HUB_REPO%:latest -f Dockerfile .
+                    '''
+                    echo "========================="
+                }
             }
         }
 
         stage('Push to DockerHub') {
             steps {
-                bat '''
-                    echo =========================
-                    echo Logging in to DockerHub...
-                    docker login -u %DOCKER_HUB_CREDENTIALS_USR% -p %DOCKER_HUB_CREDENTIALS_PSW%
-
-                    echo Pushing Docker Image...
-                    docker push %DOCKER_HUB_REPO_BACKEND%:latest
-                    echo =========================
-                '''
+                script {
+                    echo "========================="
+                    echo "Logging in to DockerHub..."
+                    bat '''
+                        echo %DOCKER_HUB_CREDENTIALS_PSW% | docker login -u %DOCKER_HUB_CREDENTIALS_USR% --password-stdin
+                        echo "Pushing Docker Image..."
+                        docker push %DOCKER_HUB_REPO%:latest
+                    '''
+                    echo "========================="
+                }
             }
         }
 
-        stage('Deploy to Minikube') {
+        stage('Start Minikube & Deploy') {
             when {
                 branch 'main'
             }
             steps {
-                bat '''
-                    echo =========================
-                    echo Checking Kubernetes context...
-                    kubectl config current-context
-
-                    echo Deploying to Minikube...
-                    kubectl apply -f k8s/
-                    echo =========================
-                '''
+                script {
+                    echo "========================="
+                    echo "Checking if Minikube is running..."
+                    bat '''
+                        minikube status | findstr "host: Running" || (minikube start && echo "Minikube started.")
+                    '''
+                    echo "Setting kubectl context to minikube..."
+                    bat '''
+                        kubectl config use-context minikube
+                        echo "Deploying Kubernetes manifests..."
+                        kubectl apply --validate=false -f k8s/
+                    '''
+                    echo "========================="
+                }
             }
         }
     }
@@ -59,7 +67,7 @@ pipeline {
     post {
         always {
             echo 'Cleaning up workspace...'
-            deleteDir()
+            cleanWs()
         }
         failure {
             echo 'Pipeline failed. Check the logs.'
