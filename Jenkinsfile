@@ -112,29 +112,29 @@ pipeline {
                     // Check if the frontend is up
                     echo "Checking if frontend is up..."
                     def frontendPort = 30001  // Replace with actual frontend node port
-                    bat '''
-                        curl -s http://%minikubeIP%:%frontendPort%/ | findstr "Frontend Running"
-                    '''
+                    bat """
+                        curl -s http://${minikubeIP}:${frontendPort}/ | findstr "Frontend Running"
+                    """
                     
                     // Check if the backend is up
                     echo "Checking if backend is up..."
                     def backendPort = 30002  // Replace with actual backend node port
-                    bat '''
-                        curl -s http://%minikubeIP%:%backendPort%/api/health | findstr "OK"
-                    '''
+                    bat """
+                        curl -s http://${minikubeIP}:${backendPort}/api/health | findstr "OK"
+                    """
                     
                     // Perform a sample CRUD operation: POST request to the backend API
                     echo "Performing sample POST request to backend API..."
-                    bat '''
-                        curl -X POST -H "Content-Type: application/json" -d "{\"name\": \"Item1\", \"description\": \"Description of item1\"}" http://%minikubeIP%:%backendPort%/api/items
-                    '''
+                    bat """
+                        curl -X POST -H "Content-Type: application/json" -d "{\"name\": \"Item1\", \"description\": \"Description of item1\"}" http://${minikubeIP}:${backendPort}/api/items
+                    """
                     
                     // Query Grafana for metrics (ensure the correct Grafana API token is set)
                     echo "Querying Grafana for metrics..."
                     def grafanaPort = 30003  // Replace with actual Grafana node port
-                    bat '''
-                        curl -G -s -H "Authorization: Bearer <grafana-api-token>" "http://%minikubeIP%:%grafanaPort%/api/datasources/proxy/1/api/v1/query" --data-urlencode "query=flask_app_database_query_count_total"
-                    '''
+                    bat """
+                        curl -G -s -H "Authorization: Bearer <grafana-api-token>" "http://${minikubeIP}:${grafanaPort}/api/datasources/proxy/1/api/v1/query" --data-urlencode "query=flask_app_database_query_count_total"
+                    """
                     
                     echo "========================="
                 }
