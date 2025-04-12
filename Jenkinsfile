@@ -3,8 +3,7 @@ pipeline {
 
     environment {
         DOCKER_HUB_CREDENTIALS = credentials('DOCKER_HUB_TOKEN')
-        DOCKER_HUB_REPO_BACKEND = 'sefali26/flask-prometheus-app'
-        DOCKER_HUB_REPO_FRONTEND = 'sefali26/frontend-nginx'
+        DOCKER_HUB_REPO = 'sefali26/flask-prometheus-app'
     }
 
     stages {
@@ -14,26 +13,13 @@ pipeline {
             }
         }
 
-        stage('Build Backend Docker Image') {
+        stage('Build Docker Image') {
             steps {
                 script {
                     echo "========================="
-                    echo "Building Backend Docker Image..."
+                    echo "Building Combined Flask App Docker Image..."
                     bat '''
-                        docker build -t %DOCKER_HUB_REPO_BACKEND%:latest -f Dockerfile .
-                    '''
-                    echo "========================="
-                }
-            }
-        }
-
-        stage('Build Frontend Docker Image') {
-            steps {
-                script {
-                    echo "========================="
-                    echo "Building Frontend Docker Image..."
-                    bat '''
-                        docker build -t %DOCKER_HUB_REPO_FRONTEND%:latest -f frontend/Dockerfile frontend
+                        docker build -t %DOCKER_HUB_REPO%:latest -f Dockerfile .
                     '''
                     echo "========================="
                 }
@@ -47,10 +33,8 @@ pipeline {
                     echo "Logging in to DockerHub..."
                     bat '''
                         echo %DOCKER_HUB_CREDENTIALS_PSW% | docker login -u %DOCKER_HUB_CREDENTIALS_USR% --password-stdin
-                        echo "Pushing Backend Image..."
-                        docker push %DOCKER_HUB_REPO_BACKEND%:latest
-                        echo "Pushing Frontend Image..."
-                        docker push %DOCKER_HUB_REPO_FRONTEND%:latest
+                        echo "Pushing Docker Image..."
+                        docker push %DOCKER_HUB_REPO%:latest
                     '''
                     echo "========================="
                 }
