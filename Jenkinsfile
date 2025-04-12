@@ -104,38 +104,42 @@ pipeline {
                     echo "========================="
                     echo "Verifying application and Grafana metrics..."
 
-                    // Get Minikube IP and log it
-                    echo "Getting Minikube IP..."
-                    def minikubeIP = bat(script: 'minikube ip', returnStdout: true).trim()
+                    // Get Minikube IP
+                    def minikubeIP = bat(script: 'minikube ip', returnStdout: true).trim().replaceAll("\r", "").replaceAll("\n", "")
                     echo "Minikube IP: ${minikubeIP}"
 
-                    // Check if the frontend is up
-                    echo "Checking if frontend is up..."
-                    def frontendPort = 30001  // Replace with actual frontend node port
+                    // Check if frontend is running
                     bat """
-                        curl -s http://${minikubeIP}:${frontendPort}/ | findstr "Frontend Running"
+                        echo Checking if frontend is running...
+                        curl -s http://${minikubeIP}:30001/ | findstr "Frontend Running"
                     """
-                    
-                    // Check if the backend is up
-                    echo "Checking if backend is up..."
-                    def backendPort = 30002  // Replace with actual backend node port
+
+                    // Check if backend is healthy
                     bat """
-                        curl -s http://${minikubeIP}:${backendPort}/api/health | findstr "OK"
+                        echo Checking if backend is healthy...
+                        curl -s http://${minikubeIP}:30002/api/health | findstr "OK"
                     """
-                    
-                    // Perform a sample CRUD operation: POST request to the backend API
-                    echo "Performing sample POST request to backend API..."
+
+                    // Perform a sample POST request to backend
                     bat """
-                        curl -X POST -H "Content-Type: application/json" -d "{\"name\": \"Item1\", \"description\": \"Description of item1\"}" http://${minikubeIP}:${backendPort}/api/items
+                        echo Sending test POST to backend...
+                        curl -X POST -H "Content-Type: application/json" -d "{\\"name\\": \\"Item1\\", \\"description\\": \\"Description\\"}" http://${minikubeIP}:30002/api/items
                     """
-                    
-                    // Query Grafana for metrics (ensure the correct Grafana API token is set)
-                    echo "Querying Grafana for metrics..."
-                    def grafanaPort = 30003  // Replace with actual Grafana node port
+
+                    // Optional: Check Prometheus metric exposed by Flask
                     bat """
-                        curl -G -s -H "Authorization: Bearer <grafana-api-token>" "http://${minikubeIP}:${grafanaPort}/api/datasources/proxy/1/api/v1/query" --data-urlencode "query=flask_app_database_query_count_total"
+                        echo Checking if Prometheus metrics are exposed...
+                        curl -s http://${minikubeIP}:30002/metrics | findstr "flask_app_database_query_count_total"
                     """
-                    
+
+                    // Query Grafana (if API token is set correctly)
+                    bat """
+                        echo Querying Grafana for metric data...
+                        curl -G -s -H "Authorization: Bearer <grafana-api-token>" ^
+                        "http://${minikubeIP}:30003/api/datasources/proxy/1/api/v1/query" ^
+                        --data-urlencode "query=flask_app_database_query_count_total"
+                    """
+
                     echo "========================="
                 }
             }
