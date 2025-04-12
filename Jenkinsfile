@@ -2,52 +2,67 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_REPO = 'sefali26/flask-prometheus-app'
+        DOCKER_HUB_CREDENTIALS = credentials('DOCKER_HUB_TOKEN')
+        DOCKER_HUB_REPO_BACKEND = 'sefali26/flask-prometheus-app'
     }
 
     stages {
         stage('Checkout') {
-            when {
-                branch 'main'
-            }
             steps {
                 checkout scm
             }
         }
 
-        stage('Build Docker Images') {
-            when {
-                branch 'main'
-            }
+        stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $DOCKER_HUB_REPO ./backend'
-                sh 'docker build -t sefali26/frontend-nginx ./frontend'
+                bat '''
+                    echo =========================
+                    echo Building Docker Image...
+                    docker build -t %DOCKER_HUB_REPO_BACKEND%:latest -f Dockerfile .
+                    echo =========================
+                '''
             }
         }
 
         stage('Push to DockerHub') {
-            when {
-                branch 'main'
-            }
             steps {
-                withCredentials([string(credentialsId: 'docker-hub-token', variable: 'DOCKER_TOKEN')]) {
-                    sh 'echo $DOCKER_TOKEN | docker login -u sefali26 --password-stdin'
-                    sh 'docker push $DOCKER_HUB_REPO'
-                    sh 'docker push sefali26/frontend-nginx'
-                }
+                bat '''
+                    echo =========================
+                    echo Logging in to DockerHub...
+                    docker login -u %DOCKER_HUB_CREDENTIALS_USR% -p %DOCKER_HUB_CREDENTIALS_PSW%
+
+                    echo Pushing Docker Image...
+                    docker push %DOCKER_HUB_REPO_BACKEND%:latest
+                    echo =========================
+                '''
             }
         }
 
         stage('Deploy to Minikube') {
             when {
-                allOf {
-                    branch 'main'
-                    expression { return env.CHANGE_ID == null }
-                }
+                branch 'main'
             }
             steps {
-                sh 'kubectl apply -f k8s/'
+                bat '''
+                    echo =========================
+                    echo Checking Kubernetes context...
+                    kubectl config current-context
+
+                    echo Deploying to Minikube...
+                    kubectl apply -f k8s/
+                    echo =========================
+                '''
             }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up workspace...'
+            deleteDir()
+        }
+        failure {
+            echo 'Pipeline failed. Check the logs.'
         }
     }
 }
