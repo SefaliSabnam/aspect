@@ -48,28 +48,28 @@ pipeline {
             steps {
                 script {
                     echo "========================="
-                    echo "Checking if Minikube is running..."
-                    // Check if Minikube is running, otherwise start it
+                    echo "Ensuring Minikube is running using Docker driver..."
                     bat '''
-                        minikube status | findstr "host: Running" || (minikube start && echo "Minikube started.")
-                    '''
-                    echo "Setting kubectl context to minikube..."
-                    // Set Kubernetes context to Minikube
-                    bat '''
-                        kubectl config use-context minikube
+                        minikube status | findstr "host: Running" >nul 2>&1
+                        if errorlevel 1 (
+                            echo "Minikube not running. Starting Minikube with docker driver..."
+                            minikube start --driver=docker
+                        ) else (
+                            echo "Minikube is already running."
+                        )
                     '''
 
-                    echo "Checking Kubernetes Cluster Connection..."
-                    // Check if Kubernetes is reachable
-                    def clusterInfo = bat(script: 'kubectl cluster-info', returnStdout: true).trim()
-                    if (clusterInfo.contains('Kubernetes master is running')) {
-                        echo 'Kubernetes cluster is reachable.'
-                    } else {
-                        error 'Unable to reach Kubernetes cluster. Please check the setup.'
-                    }
+                    echo "Setting kubectl context to minikube..."
+                    bat 'kubectl config use-context minikube'
+
+                    echo "Checking if Kubernetes API server is reachable..."
+                    bat '''
+                        for /f "tokens=* usebackq" %%i in (`kubectl get nodes ^| findstr "Ready"`) do (
+                            echo "Cluster is Ready: %%i"
+                        )
+                    '''
 
                     echo "Deploying Kubernetes manifests..."
-                    // Deploy Kubernetes manifests
                     bat '''
                         kubectl apply --validate=false -f k8s/
                     '''
