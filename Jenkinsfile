@@ -76,8 +76,12 @@ pipeline {
 
                     echo "Waiting for Kubernetes API to be ready..."
                     bat '''
-                        timeout /t 10
-                        echo Checking node readiness...
+                        echo Waiting for 10 seconds...
+                        ping -n 10 127.0.0.1 >nul
+                    '''
+
+                    echo "Checking node readiness..."
+                    bat '''
                         for /f "tokens=* usebackq" %%i in (`kubectl get nodes ^| findstr "Ready"`) do (
                             echo "Cluster is Ready: %%i"
                         )
