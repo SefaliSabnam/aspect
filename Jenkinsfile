@@ -49,13 +49,28 @@ pipeline {
                 script {
                     echo "========================="
                     echo "Checking if Minikube is running..."
+                    // Check if Minikube is running, otherwise start it
                     bat '''
                         minikube status | findstr "host: Running" || (minikube start && echo "Minikube started.")
                     '''
                     echo "Setting kubectl context to minikube..."
+                    // Set Kubernetes context to Minikube
                     bat '''
                         kubectl config use-context minikube
-                        echo "Deploying Kubernetes manifests..."
+                    '''
+
+                    echo "Checking Kubernetes Cluster Connection..."
+                    // Check if Kubernetes is reachable
+                    def clusterInfo = bat(script: 'kubectl cluster-info', returnStdout: true).trim()
+                    if (clusterInfo.contains('Kubernetes master is running')) {
+                        echo 'Kubernetes cluster is reachable.'
+                    } else {
+                        error 'Unable to reach Kubernetes cluster. Please check the setup.'
+                    }
+
+                    echo "Deploying Kubernetes manifests..."
+                    // Deploy Kubernetes manifests
+                    bat '''
                         kubectl apply --validate=false -f k8s/
                     '''
                     echo "========================="
