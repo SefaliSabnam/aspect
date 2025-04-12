@@ -19,8 +19,8 @@ pipeline {
                 script {
                     echo "========================="
                     echo "Building Backend Docker Image..."
-                    sh '''
-                        docker build -t $DOCKER_HUB_REPO_BACKEND:latest -f Dockerfile .
+                    bat '''
+                        docker build -t %DOCKER_HUB_REPO_BACKEND%:latest -f Dockerfile .
                     '''
                     echo "========================="
                 }
@@ -32,8 +32,8 @@ pipeline {
                 script {
                     echo "========================="
                     echo "Building Frontend Docker Image..."
-                    sh '''
-                        docker build -t $DOCKER_HUB_REPO_FRONTEND:latest -f frontend/Dockerfile frontend
+                    bat '''
+                        docker build -t %DOCKER_HUB_REPO_FRONTEND%:latest -f frontend/Dockerfile frontend
                     '''
                     echo "========================="
                 }
@@ -45,12 +45,12 @@ pipeline {
                 script {
                     echo "========================="
                     echo "Logging in to DockerHub..."
-                    sh '''
-                        echo $DOCKER_HUB_CREDENTIALS_PSW | docker login -u $DOCKER_HUB_CREDENTIALS_USR --password-stdin
+                    bat '''
+                        echo %DOCKER_HUB_CREDENTIALS_PSW% | docker login -u %DOCKER_HUB_CREDENTIALS_USR% --password-stdin
                         echo "Pushing Backend Image..."
-                        docker push $DOCKER_HUB_REPO_BACKEND:latest
+                        docker push %DOCKER_HUB_REPO_BACKEND%:latest
                         echo "Pushing Frontend Image..."
-                        docker push $DOCKER_HUB_REPO_FRONTEND:latest
+                        docker push %DOCKER_HUB_REPO_FRONTEND%:latest
                     '''
                     echo "========================="
                 }
@@ -65,11 +65,11 @@ pipeline {
                 script {
                     echo "========================="
                     echo "Checking if Minikube is running..."
-                    sh '''
-                        minikube status | grep "host: Running" || (minikube start && echo "Minikube started.")
+                    bat '''
+                        minikube status | findstr "host: Running" || (minikube start && echo "Minikube started.")
                     '''
                     echo "Setting kubectl context to minikube..."
-                    sh '''
+                    bat '''
                         kubectl config use-context minikube
                         echo "Deploying Kubernetes manifests..."
                         kubectl apply --validate=false -f k8s/
