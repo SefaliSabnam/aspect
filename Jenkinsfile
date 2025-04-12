@@ -16,40 +16,44 @@ pipeline {
 
         stage('Build Backend Docker Image') {
             steps {
-                bat '''
-                    echo =========================
-                    echo Building Backend Docker Image...
-                    docker build -t %DOCKER_HUB_REPO_BACKEND%:latest -f Dockerfile .
-                    echo =========================
-                '''
+                script {
+                    echo "========================="
+                    echo "Building Backend Docker Image..."
+                    sh '''
+                        docker build -t $DOCKER_HUB_REPO_BACKEND:latest -f Dockerfile .
+                    '''
+                    echo "========================="
+                }
             }
         }
 
         stage('Build Frontend Docker Image') {
             steps {
-                bat '''
-                    echo =========================
-                    echo Building Frontend Docker Image...
-                    docker build -t %DOCKER_HUB_REPO_FRONTEND%:latest -f frontend/Dockerfile frontend
-                    echo =========================
-                '''
+                script {
+                    echo "========================="
+                    echo "Building Frontend Docker Image..."
+                    sh '''
+                        docker build -t $DOCKER_HUB_REPO_FRONTEND:latest -f frontend/Dockerfile frontend
+                    '''
+                    echo "========================="
+                }
             }
         }
 
         stage('Push to DockerHub') {
             steps {
-                bat '''
-                    echo =========================
-                    echo Logging in to DockerHub...
-                    docker login -u %DOCKER_HUB_CREDENTIALS_USR% -p %DOCKER_HUB_CREDENTIALS_PSW%
-
-                    echo Pushing Backend Image...
-                    docker push %DOCKER_HUB_REPO_BACKEND%:latest
-
-                    echo Pushing Frontend Image...
-                    docker push %DOCKER_HUB_REPO_FRONTEND%:latest
-                    echo =========================
-                '''
+                script {
+                    echo "========================="
+                    echo "Logging in to DockerHub..."
+                    sh '''
+                        echo $DOCKER_HUB_CREDENTIALS_PSW | docker login -u $DOCKER_HUB_CREDENTIALS_USR --password-stdin
+                        echo "Pushing Backend Image..."
+                        docker push $DOCKER_HUB_REPO_BACKEND:latest
+                        echo "Pushing Frontend Image..."
+                        docker push $DOCKER_HUB_REPO_FRONTEND:latest
+                    '''
+                    echo "========================="
+                }
             }
         }
 
@@ -58,24 +62,20 @@ pipeline {
                 branch 'main'
             }
             steps {
-                bat '''
-                    echo =========================
-                    echo Checking if Minikube is running...
-                    minikube status | findstr /C:"host: Running"
-                    if ERRORLEVEL 1 (
-                        echo Minikube is not running. Starting Minikube...
-                        minikube start
-                    ) else (
-                        echo Minikube is already running.
-                    )
-
-                    echo Setting kubectl context to minikube...
-                    kubectl config use-context minikube
-
-                    echo Deploying Kubernetes manifests...
-                    kubectl apply --validate=false -f k8s/
-                    echo =========================
-                '''
+                script {
+                    echo "========================="
+                    echo "Checking if Minikube is running..."
+                    sh '''
+                        minikube status | grep "host: Running" || (minikube start && echo "Minikube started.")
+                    '''
+                    echo "Setting kubectl context to minikube..."
+                    sh '''
+                        kubectl config use-context minikube
+                        echo "Deploying Kubernetes manifests..."
+                        kubectl apply --validate=false -f k8s/
+                    '''
+                    echo "========================="
+                }
             }
         }
     }
@@ -83,7 +83,7 @@ pipeline {
     post {
         always {
             echo 'Cleaning up workspace...'
-            deleteDir()
+            cleanWs()
         }
         failure {
             echo 'Pipeline failed. Check the logs.'
