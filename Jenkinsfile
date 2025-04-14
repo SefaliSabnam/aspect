@@ -19,7 +19,7 @@ pipeline {
                     echo "========================="
                     echo "Building Combined Flask App Docker Image..."
                     bat """
-                        docker build -t %DOCKER_HUB_REPO%:latest -f Dockerfile .
+                        docker build -t ${DOCKER_HUB_REPO}:latest -f Dockerfile .
                     """
                     echo "========================="
                 }
@@ -32,9 +32,9 @@ pipeline {
                     echo "========================="
                     echo "Logging in to DockerHub..."
                     bat """
-                        echo %DOCKER_HUB_CREDENTIALS_PSW% | docker login -u %DOCKER_HUB_CREDENTIALS_USR% --password-stdin
+                        echo ${DOCKER_HUB_CREDENTIALS_PSW} | docker login -u ${DOCKER_HUB_CREDENTIALS_USR} --password-stdin
                         echo Pushing Docker Image...
-                        docker push %DOCKER_HUB_REPO%:latest
+                        docker push ${DOCKER_HUB_REPO}:latest
                     """
                     echo "========================="
                 }
@@ -74,15 +74,20 @@ pipeline {
 
                     echo "Waiting for Kubernetes API to respond..."
 
-                    // Corrected loop for checking node readiness
+                    // Improved readiness check
                     bat """
-                        for /L %%i in (1,1,10) do (
-                            echo Checking node readiness (Attempt %%i)...
-                            kubectl get nodes | findstr " Ready " && exit /b 0
+                        set count=0
+                        :retry
+                        kubectl get nodes | findstr " Ready "
+                        if errorlevel 1 (
+                            set /a count+=1
+                            if %count% geq 10 (
+                                echo Node not ready after multiple attempts. Exiting...
+                                exit /b 1
+                            )
                             timeout /t 5 >nul
+                            goto retry
                         )
-                        echo Node not ready after multiple attempts. Exiting...
-                        exit /b 1
                     """
 
                     bat """
