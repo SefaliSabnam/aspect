@@ -93,6 +93,9 @@ pipeline {
         }
 
         stage('Verify Application and Prometheus Metrics') {
+            when {
+                branch 'main'
+            }
             steps {
                 script {
                     echo "========================="
