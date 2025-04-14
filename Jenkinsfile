@@ -74,16 +74,15 @@ pipeline {
 
                     echo "Waiting for Kubernetes API to respond..."
 
-                    bat """
-                        for /L %i in (1,1,10) do (
-                            echo Checking node readiness (Attempt %i)...
-                            kubectl get nodes | findstr " Ready "
-                            if not errorlevel 1 exit /b 0
+                    bat '''
+                        for /L %%i in (1,1,10) do (
+                            echo Checking node readiness (Attempt %%i)...
+                            kubectl get nodes | findstr " Ready " && exit /b 0
                             timeout /t 5 >nul
                         )
                         echo Node not ready after multiple attempts. Exiting...
                         exit /b 1
-                    """
+                    '''
 
                     bat """
                         echo Applying Kubernetes manifests...
