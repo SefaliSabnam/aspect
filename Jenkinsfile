@@ -142,8 +142,12 @@ pipeline {
 
     post {
         always {
-            echo 'Cleaning up workspace...'
-            cleanWs()
+            script {
+                node {
+                    echo 'Cleaning up workspace...'
+                    cleanWs()
+                }
+            }
         }
         failure {
             echo 'Pipeline failed. Check the logs.'
