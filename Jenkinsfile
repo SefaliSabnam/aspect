@@ -50,25 +50,23 @@ pipeline {
                     echo "========================="
                     echo "===== STARTING: Minikube Cluster & Deployment ====="
 
-                    bat """
-                        docker container prune -f
-                        docker image prune -af
-                    """
+                    bat "docker container prune -f"
+                    bat "docker image prune -af"
 
                     bat """
                         minikube status | findstr "host: Running" >nul 2>&1
                         if errorlevel 1 (
-                            echo "Minikube not running. Starting..."
+                            echo Minikube not running. Starting...
                             minikube start --driver=docker --memory=4096 --cpus=2
+                            timeout /t 20
                         ) else (
-                            echo "Minikube is already running."
+                            echo Minikube is already running.
                         )
                     """
 
-                    bat """
-                        set HTTP_PROXY=http://your.proxy.address:port
-                        set HTTPS_PROXY=http://your.proxy.address:port
-                    """
+                    // Optional: Proxy if needed
+                    // bat 'set HTTP_PROXY=http://your.proxy.address:port'
+                    // bat 'set HTTPS_PROXY=http://your.proxy.address:port'
 
                     bat """
                         kubectl config use-context minikube
@@ -78,15 +76,17 @@ pipeline {
                         )
                     """
 
-                    bat """
-                        echo Waiting for Kubernetes API...
-                        ping -n 10 127.0.0.1 >nul
-                    """
+                    echo "Waiting for Kubernetes API to respond..."
 
-                    bat """
-                        echo Checking node readiness...
-                        kubectl get nodes | findstr "Ready"
-                    """
+                    bat '''
+                        for /L %%i in (1,1,10) do (
+                            echo Checking node readiness (Attempt %%i)...
+                            kubectl get nodes | findstr " Ready " && exit /b 0
+                            timeout /t 5
+                        )
+                        echo Node not ready after multiple attempts. Exiting...
+                        exit /b 1
+                    '''
 
                     bat """
                         echo Applying Kubernetes manifests...
@@ -140,7 +140,7 @@ pipeline {
                     echo "Navigate to Dashboards > Browse > Prometheus Dashboard"
                     echo "========================="
 
-                    echo " Deployment Successful: Application and monitoring are working! "
+                    echo "Deployment Successful: Application and monitoring are working!"
                 }
             }
         }
