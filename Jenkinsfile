@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = credentials('DOCKER_HUB_TOKEN')
         DOCKER_HUB_REPO = 'sefali26/flask-prometheus-app'
-        GRAFANA_API_TOKEN = credentials('GRAFANA_API_TOKEN') // <- Store this in Jenkins Credentials
+        GRAFANA_BASIC_AUTH = credentials('GRAFANA_BASIC_AUTH') // <- Jenkins Username+Password credential
     }
 
     stages {
@@ -125,8 +125,8 @@ pipeline {
                     """
 
                     bat """
-                        echo Querying Grafana for metric data...
-                        curl -G -s -H "Authorization: Bearer %GRAFANA_API_TOKEN%" ^
+                        echo Querying Grafana for metric data with basic auth...
+                        curl -G -s -u %GRAFANA_BASIC_AUTH_USR%:%GRAFANA_BASIC_AUTH_PSW% ^
                         "http://${minikubeIP}:30003/api/datasources/proxy/1/api/v1/query" ^
                         --data-urlencode "query=flask_app_database_query_count_total"
                     """
