@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = credentials('DOCKER_HUB_TOKEN')
         DOCKER_HUB_REPO = 'sefali26/flask-prometheus-app'
-        GRAFANA_API_TOKEN = credentials('GRAFANA_API_TOKEN')
+        GRAFANA_API_TOKEN = credentials('GRAFANA_API_TOKEN') // <- Store this in Jenkins Credentials
     }
 
     stages {
@@ -94,9 +94,6 @@ pipeline {
         }
 
         stage('Verify Application and Grafana Metrics') {
-            when {
-                branch 'main'
-            }
             steps {
                 script {
                     echo "========================="
@@ -142,12 +139,8 @@ pipeline {
 
     post {
         always {
-            script {
-                node {
-                    echo 'Cleaning up workspace...'
-                    cleanWs()
-                }
-            }
+            echo 'Cleaning up workspace...'
+            cleanWs()
         }
         failure {
             echo 'Pipeline failed. Check the logs.'
