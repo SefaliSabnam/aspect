@@ -50,10 +50,14 @@ pipeline {
                     echo "========================="
                     echo "===== STARTING: Minikube Cluster & Deployment ====="
 
+                    // Clean Docker containers and images
                     bat """
                         docker container prune -f
                         docker image prune -af
+                    """
 
+                    // Check if Minikube is running, start if not
+                    bat """
                         minikube status | findstr "host: Running" >nul 2>&1
                         if errorlevel 1 (
                             echo "Minikube not running. Starting..."
@@ -63,6 +67,13 @@ pipeline {
                         )
                     """
 
+                    // Ensure Minikube can access the registry (proxy configuration)
+                    bat """
+                        set HTTP_PROXY=http://your.proxy.address:port
+                        set HTTPS_PROXY=http://your.proxy.address:port
+                    """
+
+                    // Switch to Minikube context for kubectl
                     bat """
                         kubectl config use-context minikube
                         if errorlevel 1 (
@@ -71,16 +82,19 @@ pipeline {
                         )
                     """
 
+                    // Wait for Kubernetes API to be ready
                     bat """
                         echo Waiting for Kubernetes API...
                         ping -n 10 127.0.0.1 >nul
                     """
 
+                    // Check node readiness
                     bat """
                         echo Checking node readiness...
                         kubectl get nodes | findstr "Ready"
                     """
 
+                    // Apply Kubernetes manifests
                     bat """
                         echo Applying Kubernetes manifests...
                         kubectl apply --validate=false -f k8s/
@@ -101,19 +115,23 @@ pipeline {
                     echo "========================="
                     echo "Verifying application and Prometheus metrics..."
 
+                    // Get Minikube IP
                     def minikubeIP = bat(script: 'minikube ip', returnStdout: true).trim().replaceAll("\r", "").replaceAll("\n", "")
                     echo "Minikube IP: ${minikubeIP}"
 
+                    // Verify frontend is running
                     bat """
                         echo Checking if frontend is running...
                         curl -s http://${minikubeIP}:30001/ | findstr "Frontend Running"
                     """
 
+                    // Verify backend health
                     bat """
                         echo Checking if backend is healthy...
                         curl -s http://${minikubeIP}:30002/api/health | findstr "OK"
                     """
 
+                    // Send test POST to backend
                     bat """
                         echo Sending test POST to backend...
                         curl -X POST -H "Content-Type: application/json" ^
@@ -121,6 +139,7 @@ pipeline {
                         http://${minikubeIP}:30002/api/items
                     """
 
+                    // Verify Prometheus metrics
                     bat """
                         echo Checking if Prometheus metrics are exposed...
                         curl -s http://${minikubeIP}:30002/metrics | findstr "flask_app_database_query_count_total"
