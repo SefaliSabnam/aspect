@@ -74,6 +74,7 @@ pipeline {
 
                     echo "Waiting for Kubernetes API to respond..."
 
+                    // Fix the for loop issue by using %%i instead of %i
                     bat '''
                         for /L %%i in (1,1,10) do (
                             echo Checking node readiness (Attempt %%i)...
