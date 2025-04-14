@@ -64,10 +64,6 @@ pipeline {
                         )
                     """
 
-                    // Optional: Proxy if needed
-                    // bat 'set HTTP_PROXY=http://your.proxy.address:port'
-                    // bat 'set HTTPS_PROXY=http://your.proxy.address:port'
-
                     bat """
                         kubectl config use-context minikube
                         if errorlevel 1 (
