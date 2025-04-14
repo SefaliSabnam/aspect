@@ -74,8 +74,8 @@ pipeline {
 
                     echo "Waiting for Kubernetes API to respond..."
 
-                    // Fix the for loop issue by using %%i instead of %i
-                    bat '''
+                    // Corrected loop for checking node readiness
+                    bat """
                         for /L %%i in (1,1,10) do (
                             echo Checking node readiness (Attempt %%i)...
                             kubectl get nodes | findstr " Ready " && exit /b 0
@@ -83,7 +83,7 @@ pipeline {
                         )
                         echo Node not ready after multiple attempts. Exiting...
                         exit /b 1
-                    '''
+                    """
 
                     bat """
                         echo Applying Kubernetes manifests...
@@ -149,10 +149,10 @@ pipeline {
             cleanWs()
         }
         failure {
-            echo ' Pipeline failed. Check the logs.'
+            echo 'Pipeline failed. Check the logs.'
         }
         success {
-            echo ' Somy project was successful!'
+            echo 'The project was successfully deployed!'
         }
     }
 }
