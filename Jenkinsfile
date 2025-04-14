@@ -4,6 +4,7 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = credentials('DOCKER_HUB_TOKEN')
         DOCKER_HUB_REPO = 'sefali26/flask-prometheus-app'
+        GRAFANA_API_TOKEN = credentials('GRAFANA_API_TOKEN')
     }
 
     stages {
@@ -51,21 +52,18 @@ pipeline {
                     echo "===== STARTING: Minikube Cluster & Deployment ====="
 
                     bat '''
-                        echo Cleaning up unused Docker containers/images...
                         docker container prune -f
                         docker image prune -af
 
-                        echo Checking Minikube status...
                         minikube status | findstr "host: Running" >nul 2>&1
                         if errorlevel 1 (
-                            echo "Minikube not running. Starting Minikube with Docker driver..."
+                            echo "Minikube not running. Starting..."
                             minikube start --driver=docker --memory=4096 --cpus=2
                         ) else (
                             echo "Minikube is already running."
                         )
                     '''
 
-                    echo "Setting kubectl context to Minikube..."
                     bat '''
                         kubectl config use-context minikube
                         if errorlevel 1 (
@@ -74,21 +72,18 @@ pipeline {
                         )
                     '''
 
-                    echo "Waiting for Kubernetes API to be ready..."
                     bat '''
-                        echo Waiting for 10 seconds...
+                        echo Waiting for Kubernetes API...
                         ping -n 10 127.0.0.1 >nul
                     '''
 
-                    echo "Checking node readiness..."
                     bat '''
-                        for /f "tokens=* usebackq" %%i in (`kubectl get nodes ^| findstr "Ready"`) do (
-                            echo "Cluster is Ready: %%i"
-                        )
+                        echo Checking node readiness...
+                        kubectl get nodes | findstr "Ready"
                     '''
 
-                    echo "Deploying Kubernetes manifests..."
                     bat '''
+                        echo Applying Kubernetes manifests...
                         kubectl apply --validate=false -f k8s/
                     '''
 
@@ -99,43 +94,42 @@ pipeline {
         }
 
         stage('Verify Application and Grafana Metrics') {
+            when {
+                branch 'main'
+            }
             steps {
                 script {
                     echo "========================="
                     echo "Verifying application and Grafana metrics..."
 
-                    // Get Minikube IP
                     def minikubeIP = bat(script: 'minikube ip', returnStdout: true).trim().replaceAll("\r", "").replaceAll("\n", "")
                     echo "Minikube IP: ${minikubeIP}"
 
-                    // Check if frontend is running
                     bat """
                         echo Checking if frontend is running...
                         curl -s http://${minikubeIP}:30001/ | findstr "Frontend Running"
                     """
 
-                    // Check if backend is healthy
                     bat """
                         echo Checking if backend is healthy...
                         curl -s http://${minikubeIP}:30002/api/health | findstr "OK"
                     """
 
-                    // Perform a sample POST request to backend
                     bat """
                         echo Sending test POST to backend...
-                        curl -X POST -H "Content-Type: application/json" -d "{\\"name\\": \\"Item1\\", \\"description\\": \\"Description\\"}" http://${minikubeIP}:30002/api/items
+                        curl -X POST -H "Content-Type: application/json" ^
+                        -d "{\\"name\\": \\"Item1\\", \\"description\\": \\"Description\\"}" ^
+                        http://${minikubeIP}:30002/api/items
                     """
 
-                    // Optional: Check Prometheus metric exposed by Flask
                     bat """
                         echo Checking if Prometheus metrics are exposed...
                         curl -s http://${minikubeIP}:30002/metrics | findstr "flask_app_database_query_count_total"
                     """
 
-                    // Query Grafana (if API token is set correctly)
                     bat """
                         echo Querying Grafana for metric data...
-                        curl -G -s -H "Authorization: Bearer <grafana-api-token>" ^
+                        curl -G -s -H "Authorization: Bearer %GRAFANA_API_TOKEN%" ^
                         "http://${minikubeIP}:30003/api/datasources/proxy/1/api/v1/query" ^
                         --data-urlencode "query=flask_app_database_query_count_total"
                     """
