@@ -53,6 +53,7 @@ pipeline {
                     bat "docker container prune -f"
                     bat "docker image prune -af"
 
+                    // Start Minikube if not running
                     bat """
                         minikube status | findstr "host: Running" >nul 2>&1
                         if errorlevel 1 (
@@ -64,6 +65,7 @@ pipeline {
                         )
                     """
 
+                    // Ensure kubectl is set to use Minikube context
                     bat """
                         kubectl config use-context minikube
                         if errorlevel 1 (
@@ -74,7 +76,7 @@ pipeline {
 
                     echo "Waiting for Kubernetes API to respond..."
 
-                    // Improved readiness check
+                    // Improved readiness check for Kubernetes nodes
                     bat """
                         set count=0
                         :retry
@@ -90,6 +92,7 @@ pipeline {
                         )
                     """
 
+                    // Apply Kubernetes manifests
                     bat """
                         echo Applying Kubernetes manifests...
                         kubectl apply --validate=false -f k8s/
@@ -113,6 +116,7 @@ pipeline {
                     def minikubeIP = bat(script: 'minikube ip', returnStdout: true).trim().replaceAll("\r", "").replaceAll("\n", "")
                     echo "Minikube IP: ${minikubeIP}"
 
+                    // Check frontend and backend health
                     bat """
                         echo Checking if frontend is running...
                         curl -s http://${minikubeIP}:30001/ | findstr "Frontend Running"
@@ -123,13 +127,15 @@ pipeline {
                         curl -s http://${minikubeIP}:30002/api/health | findstr "OK"
                     """
 
+                    // Test backend POST request
                     bat """
                         echo Sending test POST to backend...
-                        curl -X POST -H "Content-Type: application/json" ^
-                        -d "{\\"name\\": \\"Item1\\", \\"description\\": \\"Description\\"}" ^
+                        curl -X POST -H "Content-Type: application/json" ^ 
+                        -d "{\\"name\\": \\"Item1\\", \\"description\\": \\"Description\\"}" ^ 
                         http://${minikubeIP}:30002/api/items
                     """
 
+                    // Check Prometheus metrics
                     bat """
                         echo Checking if Prometheus metrics are exposed...
                         curl -s http://${minikubeIP}:30002/metrics | findstr "flask_app_database_query_count_total"
